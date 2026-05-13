@@ -1,4 +1,4 @@
-import ManualRefundForm from "@/components/calculator/ManualRefundForm";
+import CalculatorTabs from "@/components/calculator/CalculatorTabs";
 
 export default function CalculatorPage() {
   return (
@@ -14,13 +14,12 @@ export default function CalculatorPage() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-            Enter your ticket details manually and get an estimated refund
-            breakdown including cancellation charge, clerkage, GST, and final
-            refund amount.
+            Calculate refund using either manual ticket details or a PNR-based
+            autofetch workflow.
           </p>
         </div>
 
-        <ManualRefundForm />
+        <CalculatorTabs />
       </div>
     </main>
   );
