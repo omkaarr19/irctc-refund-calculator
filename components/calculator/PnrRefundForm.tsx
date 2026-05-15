@@ -94,6 +94,20 @@ export default function PnrRefundForm() {
     }
   }
 
+  function updateBooking<K extends keyof PnrBooking>(
+    key: K,
+    value: PnrBooking[K]
+  ) {
+    setBooking((previous) => {
+      if (!previous) return previous;
+
+      return {
+        ...previous,
+        [key]: value,
+      };
+    });
+  }
+
   async function calculateFromPnr() {
     if (!booking) return;
 
@@ -102,24 +116,26 @@ export default function PnrRefundForm() {
     setCalculateLoading(true);
 
     try {
+      const payload = {
+        bookingClass: booking.bookingClass,
+        ticketStatus: booking.ticketStatus,
+        quota: booking.quota,
+        farePaid: Number(booking.farePaid),
+        passengerCount: Number(booking.passengerCount),
+        scheduledDeparture: new Date(booking.scheduledDeparture).toISOString(),
+        cancellationTime: new Date(booking.cancellationTime).toISOString(),
+        chartPrepared: booking.chartPrepared,
+        journeyEvent: booking.journeyEvent,
+        passengerNotTravelled: booking.passengerNotTravelled,
+        tdrFiledBeforeActualDeparture: booking.tdrFiledBeforeActualDeparture,
+      };
+
       const response = await fetch("/api/calculate-refund", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          bookingClass: booking.bookingClass,
-          ticketStatus: booking.ticketStatus,
-          quota: booking.quota,
-          farePaid: booking.farePaid,
-          passengerCount: booking.passengerCount,
-          scheduledDeparture: booking.scheduledDeparture,
-          cancellationTime: booking.cancellationTime,
-          chartPrepared: booking.chartPrepared,
-          journeyEvent: booking.journeyEvent,
-          passengerNotTravelled: booking.passengerNotTravelled,
-          tdrFiledBeforeActualDeparture: booking.tdrFiledBeforeActualDeparture,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = (await response.json()) as RefundApiResponse;
@@ -150,8 +166,9 @@ export default function PnrRefundForm() {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Enter a 10-digit PNR number. In this development version, the system
-            uses mock railway data. Later we will connect a real PNR API.
+            Enter a 10-digit PNR number. The system will fetch available booking
+            details, then you can verify or edit missing fields before
+            calculating the refund.
           </p>
         </div>
 
@@ -193,7 +210,7 @@ export default function PnrRefundForm() {
 
         {booking && (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+            <div className="mb-5 flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
               <div>
                 <h3 className="font-semibold text-slate-900">
                   {booking.trainName}
@@ -208,24 +225,188 @@ export default function PnrRefundForm() {
               </span>
             </div>
 
-            <div className="grid gap-3 text-sm md:grid-cols-2">
-              <Info label="Journey Date" value={booking.journeyDate} />
-              <Info
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">
+                Verify details before calculation
+              </p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                Some PNR APIs may not return fare, quota, chart status, or TDR
+                details. Please correct the fields below before calculating.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <DisplayInfo label="Journey Date" value={booking.journeyDate} />
+
+              <DisplayInfo
                 label="Route"
                 value={`${booking.boardingStation} → ${booking.destinationStation}`}
               />
-              <Info label="Class" value={booking.bookingClass} />
-              <Info label="Status" value={booking.ticketStatus} />
-              <Info label="Quota" value={booking.quota} />
-              <Info label="Fare Paid" value={`₹${booking.farePaid}`} />
-              <Info
-                label="Passenger Count"
-                value={String(booking.passengerCount)}
-              />
-              <Info
-                label="Chart Prepared"
-                value={booking.chartPrepared ? "Yes" : "No"}
-              />
+
+              <Field label="Booking Class">
+                <select
+                  className="input"
+                  value={booking.bookingClass}
+                  onChange={(event) =>
+                    updateBooking("bookingClass", event.target.value)
+                  }
+                >
+                  <option value="1A">1A - First AC</option>
+                  <option value="EC">EC - Executive Class</option>
+                  <option value="2A">2A - Second AC</option>
+                  <option value="FC">FC - First Class</option>
+                  <option value="3A">3A - Third AC</option>
+                  <option value="CC">CC - AC Chair Car</option>
+                  <option value="3E">3E - Third AC Economy</option>
+                  <option value="SL">SL - Sleeper</option>
+                  <option value="2S">2S - Second Sitting</option>
+                </select>
+              </Field>
+
+              <Field label="Ticket Status">
+                <select
+                  className="input"
+                  value={booking.ticketStatus}
+                  onChange={(event) =>
+                    updateBooking("ticketStatus", event.target.value)
+                  }
+                >
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="RAC">RAC</option>
+                  <option value="WAITLISTED">Waitlisted</option>
+                  <option value="PARTIALLY_CONFIRMED">
+                    Partially Confirmed
+                  </option>
+                </select>
+              </Field>
+
+              <Field label="Quota">
+                <select
+                  className="input"
+                  value={booking.quota}
+                  onChange={(event) => updateBooking("quota", event.target.value)}
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="TATKAL">Tatkal</option>
+                  <option value="PREMIUM_TATKAL">Premium Tatkal</option>
+                </select>
+              </Field>
+
+              <Field label="Fare Paid">
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={booking.farePaid}
+                  onChange={(event) =>
+                    updateBooking("farePaid", Number(event.target.value))
+                  }
+                />
+              </Field>
+
+              <Field label="Passenger Count">
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  max="6"
+                  value={booking.passengerCount}
+                  onChange={(event) =>
+                    updateBooking("passengerCount", Number(event.target.value))
+                  }
+                />
+              </Field>
+
+              <Field label="Chart Prepared?">
+                <select
+                  className="input"
+                  value={booking.chartPrepared ? "yes" : "no"}
+                  onChange={(event) =>
+                    updateBooking("chartPrepared", event.target.value === "yes")
+                  }
+                >
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </Field>
+
+              <Field label="Scheduled Departure">
+                <input
+                  className="input"
+                  type="datetime-local"
+                  value={toDateTimeLocalValue(booking.scheduledDeparture)}
+                  onChange={(event) =>
+                    updateBooking("scheduledDeparture", event.target.value)
+                  }
+                />
+              </Field>
+
+              <Field label="Cancellation Time">
+                <input
+                  className="input"
+                  type="datetime-local"
+                  value={toDateTimeLocalValue(booking.cancellationTime)}
+                  onChange={(event) =>
+                    updateBooking("cancellationTime", event.target.value)
+                  }
+                />
+              </Field>
+
+              <Field label="Journey Event">
+                <select
+                  className="input"
+                  value={booking.journeyEvent}
+                  onChange={(event) =>
+                    updateBooking("journeyEvent", event.target.value)
+                  }
+                >
+                  <option value="NORMAL">Normal Cancellation</option>
+                  <option value="TRAIN_CANCELLED">Train Cancelled</option>
+                  <option value="TRAIN_LATE_MORE_THAN_3_HOURS">
+                    Train Late More Than 3 Hours
+                  </option>
+                  <option value="TRAIN_PARTIALLY_CANCELLED">
+                    Train Partially Cancelled
+                  </option>
+                  <option value="TRAIN_DIVERTED">Train Diverted</option>
+                  <option value="TRAIN_SHORT_TERMINATED">
+                    Train Short Terminated
+                  </option>
+                </select>
+              </Field>
+
+              <Field label="Passenger Not Travelled?">
+                <select
+                  className="input"
+                  value={booking.passengerNotTravelled ? "yes" : "no"}
+                  onChange={(event) =>
+                    updateBooking(
+                      "passengerNotTravelled",
+                      event.target.value === "yes"
+                    )
+                  }
+                >
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </Field>
+
+              <Field label="TDR Filed Before Actual Departure?">
+                <select
+                  className="input"
+                  value={booking.tdrFiledBeforeActualDeparture ? "yes" : "no"}
+                  onChange={(event) =>
+                    updateBooking(
+                      "tdrFiledBeforeActualDeparture",
+                      event.target.value === "yes"
+                    )
+                  }
+                >
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </Field>
             </div>
 
             <button
@@ -236,7 +417,7 @@ export default function PnrRefundForm() {
             >
               {calculateLoading
                 ? "Calculating Refund..."
-                : "Calculate Refund from PNR"}
+                : "Calculate Refund from Confirmed Details"}
             </button>
           </div>
         )}
@@ -247,7 +428,24 @@ export default function PnrRefundForm() {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function DisplayInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-white p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -256,4 +454,19 @@ function Info({ label, value }: { label: string; value: string }) {
       <p className="mt-1 font-semibold text-slate-900">{value}</p>
     </div>
   );
+}
+
+function toDateTimeLocalValue(value: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  const localDate = new Date(date.getTime() - offsetMs);
+
+  return localDate.toISOString().slice(0, 16);
 }
