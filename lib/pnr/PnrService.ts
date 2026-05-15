@@ -1,6 +1,8 @@
+import { env } from "@/lib/config/env";
+import { MockPnrProvider } from "./MockPnrProvider";
 import type { PnrProvider } from "./PnrProvider";
 import type { PnrLookupResult } from "./pnrTypes";
-import { MockPnrProvider } from "./MockPnrProvider";
+import { RapidApiPnrProvider } from "./RapidApiPnrProvider";
 
 export class PnrService {
   constructor(private readonly providers: PnrProvider[]) {}
@@ -32,8 +34,18 @@ export class PnrService {
 }
 
 export function createPnrService() {
-  return new PnrService([
-    // Later we will add real providers here.
-    new MockPnrProvider(),
-  ]);
+  if (env.pnrProvider === "rapidapi") {
+    return new PnrService([
+      new RapidApiPnrProvider({
+        apiKey: env.rapidApi.key,
+        apiHost: env.rapidApi.host,
+        endpoint: env.rapidApi.pnrEndpoint,
+      }),
+
+      // fallback provider
+      new MockPnrProvider(),
+    ]);
+  }
+
+  return new PnrService([new MockPnrProvider()]);
 }
