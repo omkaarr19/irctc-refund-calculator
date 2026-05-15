@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createPnrService } from "@/lib/pnr/PnrService";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,42 +16,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mock PNR data for development.
-    // Later we will replace this with real railway API provider integration.
-    const mockBooking = {
-      pnr,
-      trainNumber: "12951",
-      trainName: "Mumbai Rajdhani Express",
-      journeyDate: "2026-06-10",
-      boardingStation: "NDLS",
-      destinationStation: "MMCT",
-
-      bookingClass: "3A",
-      ticketStatus: "CONFIRMED",
-      quota: "GENERAL",
-
-      farePaid: 2000,
-      passengerCount: 1,
-
-      scheduledDeparture: "2026-06-10T10:00:00.000Z",
-      cancellationTime: new Date().toISOString(),
-
-      chartPrepared: false,
-      journeyEvent: "NORMAL",
-
-      passengerNotTravelled: false,
-      tdrFiledBeforeActualDeparture: false,
-    };
+    const pnrService = createPnrService();
+    const result = await pnrService.lookup(pnr);
 
     return NextResponse.json({
       success: true,
-      booking: mockBooking,
+      provider: result.provider,
+      booking: result.booking,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: "Unable to fetch PNR details.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to fetch PNR details.",
       },
       { status: 500 }
     );
